@@ -1,13 +1,16 @@
 
+# config.py
 from pydantic import BaseSettings
 
 class Settings(BaseSettings):
-    OPENAI_API_KEY: str
     TEMP_DIR: str = "/tmp/zerox"
     MAX_CONCURRENCY: int = 10
     CLEANUP_TEMP: bool = True
-    
-    class Config:
-        env_file = ".env"
 
 settings = Settings()
+
+# models.py
+from pydantic import BaseModel
+
+class ConversionRequest(BaseModel):
+    api_key: str
