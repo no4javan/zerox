@@ -1,3 +1,4 @@
+# Dockerfile
 FROM python:3.9-slim
 
 # Install system dependencies
@@ -28,5 +29,4 @@ fastapi==0.100.0
 uvicorn==0.22.0
 python-multipart==0.0.6
 py-zerox==0.1.0
-python-dotenv==1.0.0
 pydantic==2.0.0
