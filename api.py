@@ -1,5 +1,6 @@
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+# api.py
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Form
 from fastapi.responses import JSONResponse
 from pyzerox import zerox
 import asyncio
@@ -7,14 +8,18 @@ import os
 import uuid
 from pathlib import Path
 from config import settings
+from models import ConversionRequest
 
 app = FastAPI(
     title="Document to Markdown Conversion API",
     description="API for converting various document formats to Markdown using Vision AI"
 )
 
-async def process_file(file_path: str, task_id: str, output_dir: str):
+async def process_file(file_path: str, task_id: str, output_dir: str, api_key: str):
     try:
+        # Set API key for this specific request
+        os.environ["OPENAI_API_KEY"] = api_key
+        
         result = await zerox(
             file_path=file_path,
             model="gpt-4o-mini",
@@ -23,6 +28,9 @@ async def process_file(file_path: str, task_id: str, output_dir: str):
             concurrency=settings.MAX_CONCURRENCY,
             temp_dir=settings.TEMP_DIR
         )
+        
+        # Clear API key after use
+        os.environ["OPENAI_API_KEY"] = ""
         
         # Save result to output directory
         result_path = Path(output_dir) / f"{task_id}_result.txt"
@@ -42,8 +50,15 @@ async def process_file(file_path: str, task_id: str, output_dir: str):
 @app.post("/convert/")
 async def convert_document(
     file: UploadFile = File(...),
+    api_key: str = Form(...),
     background_tasks: BackgroundTasks
 ):
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="API key is required"
+        )
+    
     # Generate unique task ID
     task_id = str(uuid.uuid4())
     
@@ -57,12 +72,13 @@ async def convert_document(
         content = await file.read()
         f.write(content)
     
-    # Start conversion in background
+    # Start conversion in background with API key
     background_tasks.add_task(
         process_file,
         str(file_path),
         task_id,
-        str(output_dir)
+        str(output_dir),
+        api_key
     )
     
     return JSONResponse({
@@ -96,7 +112,7 @@ async def read_root():
     return {
         "message": "Document to Markdown Conversion API",
         "endpoints": {
-            "/convert/": "POST - Convert document to markdown",
+            "/convert/": "POST - Convert document to markdown (requires file and api_key)",
             "/status/{task_id}": "GET - Check conversion status"
         }
     }
